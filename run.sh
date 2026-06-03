@@ -1,14 +1,44 @@
 #!/usr/bin/env bash
 # =============================================================================
-# run.sh - Setup + treino "tiro e queda" do Gemma-4-12B Juridico em H100
+# run.sh - Pipeline completo: setup + fine-tuning + exportacao + benchmark
+#          do Gemma-4-12B Juridico em NVIDIA H100 (tiro e queda)
 #
-# Uso:
-#   export HF_TOKEN=hf_xxxxxxxx        # token com aceite da licenca Gemma
-#   bash run.sh                        # instala deps (1a vez) e treina
+# DOCUMENTACAO COMPLETA:
 #
-# Variaveis opcionais:
-#   SKIP_INSTALL=1 bash run.sh         # pula a instalacao (deps ja prontas)
-#   EXTRA_ARGS="--gguf --epochs 3" bash run.sh
+# 1. PRE-REQUISITO OBRIGATORIO:
+#    Voce DEVE aceitar a licenca do Gemma 4 na HuggingFace:
+#    https://huggingface.co/google/gemma-4-12b-it
+#    Depois gere um token em https://huggingface.co/settings/tokens
+#
+# 2. CENARIO BASICO (somente treino, 1-2h):
+#    export HF_TOKEN=hf_xxx
+#    bash run.sh
+#
+# 3. TREINO + GGUF (exporta para llama.cpp/Ollama):
+#    EXTRA_ARGS="--gguf" bash run.sh
+#
+# 4. PIPELINE COMPLETO (treino + benchmark + GGUF) — estilo startup de IA:
+#    EXTRA_ARGS="--benchmark --benchmark_suite full --gguf" bash run.sh
+#    
+# 5. TREINO RAPIDO (pula instalacao, ideal para testes):
+#    SKIP_INSTALL=1 bash run.sh
+#
+# 6. TREINO LIMITADO (2000 exemplos, 1 epoca, para testar rapido):
+#    EXTRA_ARGS="--max_samples 2000 --epochs 1" bash run.sh
+#
+# 7. FULL FINE-TUNING (mais lento, requer H100 80GB):
+#    EXTRA_ARGS="--full_finetune --batch_size 2 --gradient_accumulation_steps 4" bash run.sh
+#
+# SAIDA PADRAO (em ./outputs_gemma4_juridico/):
+#   modelo_final/       -> adaptadores LoRA (menor, reutilizavel)
+#   merged_16bit/       -> modelo mesclado 16-bit (MELHOR qualidade para deploy)
+#   checkpoints/        -> checkpoints intermediarios (save_total_limit=2)
+#   gguf/               -> modelos quantizados (se --gguf)
+#   benchmark_results/  -> relatorio JSON + Markdown (se --benchmark)
+#
+# DICA: O benchmark eh LENTO (pode levar 1-3h extras). Rode sem benchmark
+#       primeiro para garantir que o treino funciona, depois rode com
+#       --benchmark para o pipeline completo.
 # =============================================================================
 set -euo pipefail
 

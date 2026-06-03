@@ -4,25 +4,79 @@ Script standalone para fine-tunar `unsloth/gemma-4-12b-it` com dados juridicos b
 
 ---
 
-## Como rodar (1 comando)
+## Guia Passo a Passo
+
+### Pre-requisito: Token HuggingFace
+
+Antes de rodar qualquer coisa, você precisa de um token HuggingFace com **aceite da licenca do Gemma 4**:
+
+1. Va em https://huggingface.co/google/gemma-4-12b-it e clique em "Access repository" para aceitar a licenca.
+2. Va em https://huggingface.co/settings/tokens e gere um token (tipo `read`).
+3. Exporte como variavel de ambiente:
 
 ```bash
-export HF_TOKEN=hf_xxxxxxxx     # token com a licenca do Gemma 4 aceita
+export HF_TOKEN=hf_xxxxxxxxxxxx
+```
+
+### Cenario 1: Treino basico (1-2 horas)
+
+O jeito mais simples. Só treina, salva LoRA + merged 16-bit.
+
+```bash
 bash run.sh
 ```
 
-O `run.sh` instala as dependencias corretas (incluindo `transformers>=5.5.0`, exigido pelo Gemma 4) e dispara o treino com os parametros recomendados.
+O que `run.sh` faz automaticamente:
+- Instala todas as dependencias (incluindo `transformers>=5.5.0`, `unsloth`, `lm-eval`, etc.)
+- Clona o fork de benchmarks em portugues (`lm-evaluation-harness-pt`)
+- Carrega o modelo `unsloth/gemma-4-12b-it` em BF16
+- Configura LoRA r=32
+- Carrega os 3 datasets juridicos brasileiros
+- Treina por 2 epocas
+- Salva: `modelo_final/` (LoRA) + `merged_16bit/` (melhor qualidade)
 
-Se as dependencias ja estiverem instaladas:
+### Cenario 2: Treino + GGUF (para llama.cpp/Ollama)
+
+Mesmo treino, mas também exporta para formatos GGUF (Q4_K_M, Q8_0).
+
+```bash
+EXTRA_ARGS="--gguf" bash run.sh
+```
+
+### Cenario 3: Treino + Benchmark completo (treino + avaliacao)
+
+Treina e depois roda **automaticamente** todos os benchmarks (internacionais + juridicos PT-BR). Este é o "pipeline completo estilo startup de AI".
+
+```bash
+EXTRA_ARGS="--benchmark --benchmark_suite full --gguf" bash run.sh
+```
+
+O que acontece neste modo:
+1. Treina o modelo (1-2h)
+2. Exporta GGUF
+3. Roda MMLU, GPQA, MMLU-Pro, GSM8K, OAB Exams, ENEM, BLUEX, ASSIN2, etc.
+4. Gera `benchmark_results/benchmark_report.md` (tabela Markdown pronta)
+
+### Cenario 4: So benchmark (modelo ja treinado)
+
+Se você ja treinou e so quer os benchmarks:
+
+```bash
+python benchmark.py --model_path ./outputs_gemma4_juridico/merged_16bit --suite full
+```
+
+### Cenario 5: Treino rapido para testar (sem instalar de novo)
+
+Se as dependencias ja estao instaladas e você so quer treinar rapidamente:
 
 ```bash
 SKIP_INSTALL=1 bash run.sh
 ```
 
-Para tambem exportar GGUF (uso local em llama.cpp/Ollama):
+Ou para um treino de teste limitado a 2000 exemplos:
 
 ```bash
-EXTRA_ARGS="--gguf" bash run.sh
+EXTRA_ARGS="--max_samples 2000 --epochs 1" bash run.sh
 ```
 
 ---
