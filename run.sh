@@ -48,6 +48,19 @@ if [[ "${SKIP_INSTALL:-0}" != "1" ]]; then
     "bitsandbytes>=0.43.0" \
     sentencepiece protobuf packaging
 
+  # Benchmarking (EleutherAI lm-eval)
+  pip install --upgrade --no-cache-dir "lm-eval[api]"
+
+  # Benchmarks em portugues + juridico (OAB, ENEM, BLUEX, ASSIN2, etc.)
+  PT_HARNESS_DIR="$SCRIPT_DIR/lm-evaluation-harness-pt"
+  if [[ ! -d "$PT_HARNESS_DIR/.git" ]]; then
+    echo "== Clonando lm-evaluation-harness-PT (benchmarks em portugues) =="
+    git clone https://github.com/eduagarcia/lm-evaluation-harness-pt "$PT_HARNESS_DIR" || true
+  fi
+  if [[ -d "$PT_HARNESS_DIR" && -f "$PT_HARNESS_DIR/setup.py" ]]; then
+    (cd "$PT_HARNESS_DIR" && pip install -e . --no-cache-dir) || echo "AVISO: instalacao PT-harness falhou"
+  fi
+
   echo "== Dependencias instaladas =="
 else
   echo "== SKIP_INSTALL=1: pulando instalacao =="

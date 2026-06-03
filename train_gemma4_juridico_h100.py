@@ -31,6 +31,7 @@ import sys
 import gc
 import time
 import argparse
+import subprocess
 import warnings
 from pathlib import Path
 
@@ -165,6 +166,15 @@ def parse_args():
                    help="Tambem exportar GGUF (pode falhar em modelo multimodal; nao-fatal)")
     p.add_argument("--gguf_quants", type=str, nargs="+", default=["q4_k_m", "q8_0"],
                    help="Metodos de quantizacao GGUF")
+
+    # Benchmark
+    p.add_argument("--benchmark", action="store_true",
+                   help="Rodar benchmark automaticamente apos o treino")
+    p.add_argument("--benchmark_suite", type=str, default="full",
+                   choices=["startup", "pt", "full"],
+                   help="Suite de benchmark a rodar")
+    p.add_argument("--pt_harness_dir", type=str, default="./lm-evaluation-harness-pt",
+                   help="Caminho para o lm-evaluation-harness-pt (benchmarks PT-BR)")
 
     p.add_argument("--test_prompt", type=str,
                    default="O que e o principio da boa-fe objetiva no Codigo Civil brasileiro?",
@@ -647,6 +657,30 @@ def main():
     trainer, final_dir = train(model, tokenizer, train_ds, eval_ds, args)
     save_model(model, tokenizer, args, final_dir)
     test_inference(model, tokenizer, args)
+
+    # Benchmark completo estilo startup de IA (opcional, nao-fatal)
+    if args.benchmark:
+        log_banner("BENCHMARK COMPLETO (iniciando)")
+        merged_path = Path(args.output_dir) / "merged_16bit"
+        # Usa merged 16-bit (melhor qualidade) se existir, senao o modelo final
+        eval_model = str(merged_path) if merged_path.exists() else str(final_dir)
+        bench_cmd = [
+            sys.executable, "benchmark.py",
+            "--model_path", eval_model,
+            "--output_dir", str(Path(args.output_dir) / "benchmark_results"),
+            "--suite", args.benchmark_suite,
+            "--batch_size", "auto",
+            "--device", "cuda:0",
+        ]
+        try:
+            result = subprocess.run(bench_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"  AVISO: benchmark retornou erro (nao-fatal):\n{result.stderr[:600]}")
+            else:
+                print("  Benchmark concluido. Veja os resultados em:",
+                      Path(args.output_dir) / "benchmark_results")
+        except Exception as e:
+            print(f"  AVISO: benchmark falhou (nao-fatal): {e}")
 
     total_min = (time.time() - t0) / 60
     log_banner("CONCLUIDO")

@@ -84,6 +84,9 @@ EXTRA_ARGS="--gguf" bash run.sh
 | `--gguf` | off | Exporta GGUF (nao-fatal) |
 | `--gguf_quants` | `q4_k_m q8_0` | Quantizacoes GGUF |
 | `--skip_merge` | off | Nao salvar merged 16-bit |
+| `--benchmark` | off | Rodar benchmark automaticamente apos treino |
+| `--benchmark_suite` | `full` | `startup` \| `pt` \| `full` |
+| `--pt_harness_dir` | `./lm-evaluation-harness-pt` | Caminho do fork PT-BR |
 
 ### Exemplos
 
@@ -99,6 +102,12 @@ python train_gemma4_juridico_h100.py --precision 4bit --batch_size 2 --max_seq_l
 
 # Full fine-tuning (requer H100 80GB)
 python train_gemma4_juridico_h100.py --full_finetune --batch_size 2 --gradient_accumulation_steps 4
+
+# Treino + benchmark completo (treino + avaliacao automatizada)
+python train_gemma4_juridico_h100.py --benchmark --benchmark_suite full --gguf
+
+# So benchmark em modelo ja treinado (sem treinar de novo)
+python benchmark.py --model_path ./outputs_gemma4_juridico/merged_16bit --suite full
 ```
 
 ---
@@ -110,7 +119,10 @@ outputs_gemma4_juridico/
 ├── checkpoints/        # checkpoints intermediarios (save_total_limit=2)
 ├── modelo_final/       # adaptadores LoRA (ou pesos full)
 ├── merged_16bit/       # modelo mesclado 16-bit  <- MELHOR QUALIDADE p/ deploy
-└── gguf/               # (se --gguf) arquivos .gguf p/ llama.cpp/Ollama
+├── gguf/               # (se --gguf) arquivos .gguf p/ llama.cpp/Ollama
+└── benchmark_results/  # (se --benchmark) resultados JSON + Markdown
+    ├── benchmark_report.json
+    └── benchmark_report.md
 ```
 
 Carregar o modelo treinado:
@@ -129,6 +141,62 @@ model, tok = FastModel.from_pretrained("outputs_gemma4_juridico/modelo_final", l
 3. `0rakul0/cpc_2015_brasil` — CPC/2015 (auto-deteccao de schema).
 
 Formatados com o chat template `gemma-4` (sem modo *thinking*) e treinados **somente nas respostas** (`train_on_responses_only`).
+
+---
+
+## Benchmark completo estilo startup de IA
+
+Apos o treino, rode uma **avaliacao padrao da industria** (inspirada nos relatorios de startups como Anthropic, OpenAI, Mistral, etc.):
+
+### Benchmarks internacionais (padrao startups)
+
+| Benchmark | O que mede |
+|-----------|------------|
+| **MMLU** | Conhecimento geral em 57 materias academicas |
+| **MMLU-Pro** | Versao mais dificil do MMLU (conhecimento avancado) |
+| **GPQA** | Raciocinio de nivel PhD (graduate-level Q&A) |
+| **ARC Challenge** | Ciencia e raciocinio (ARC: AI2 Reasoning Challenge) |
+| **HellaSwag** | Sentido comum e coerencia textual |
+| **TruthfulQA** | Veracidade e tendencia a alucinacoes |
+| **WinoGrande** | Resolucao de anaphora (pronomes) |
+| **GSM8K** | Matematica e resolucao de problemas matematicos |
+
+### Benchmarks juridicos e em portugues
+
+| Benchmark | O que mede |
+|-----------|------------|
+| **OAB Exams** | Exame da Ordem dos Advogados do Brasil! (conhecimento juridico real) |
+| **ENEM Challenge** | Exame Nacional do Ensino Medio (conhecimento geral BR) |
+| **BLUEX** | Compreensao de leitura em portugues |
+| **ASSIN2 RTE** | Reconhecimento de Entailment Textual em PT |
+| **ASSIN2 STS** | Similaridade Semantica em portugues |
+| **FaQuAD-NLI** | Natural Language Inference em portugues |
+| **TweetSentBR** | Analise de sentimento em tweets PT-BR |
+| **HateBR** | Deteccao de discurso ofensivo/hate speech em PT-BR |
+
+### Como usar
+
+**Automatico** (apos o treino):
+```bash
+python train_gemma4_juridico_h100.py --benchmark --benchmark_suite full
+```
+
+**Manual** (em modelo ja treinado):
+```bash
+# Todos os benchmarks
+python benchmark.py --model_path ./outputs_gemma4_juridico/merged_16bit --suite full
+
+# So benchmarks internacionais (rapido)
+python benchmark.py --model_path ./outputs_gemma4_juridico/merged_16bit --suite startup
+
+# So benchmarks juridicos/portugues
+python benchmark.py --model_path ./outputs_gemma4_juridico/merged_16bit --suite pt
+
+# Teste rapido (limitado a 100 exemplos por task)
+python benchmark.py --model_path ./outputs_gemma4_juridico/merged_16bit --suite full --limit 100
+```
+
+**Saida**: `benchmark_results/benchmark_report.json` (dados) + `benchmark_report.md` (tabela Markdown para README/pitch).
 
 ---
 
