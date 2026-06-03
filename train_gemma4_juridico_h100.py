@@ -497,7 +497,6 @@ def train(model, tokenizer, train_ds, eval_ds, args):
         report_to="none",
         dataloader_num_workers=4,
         dataloader_pin_memory=True,
-        group_by_length=True,        # reduz padding => mais rapido
         remove_unused_columns=False,
     )
     if eval_ds is not None:
