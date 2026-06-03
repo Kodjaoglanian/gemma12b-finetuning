@@ -1,0 +1,29 @@
+# Dependencias para fine-tuning Gemma-4-12B Juridico em H100
+# Instale em um ambiente Python 3.10+ com CUDA 12.1+ / 12.4+
+
+# Core (transformers >=5.5.0 obrigatorio para suporte gemma4_unified)
+transformers>=5.5.0
+accelerate>=0.30.0
+datasets>=2.14.0
+huggingface-hub>=0.34.0
+
+# Unsloth (otimizacoes de velocidade e memoria)
+unsloth
+unsloth-zoo
+
+# Treinamento RL/SFT
+trl>=0.15.0
+
+# Otimizadores quantizados
+bitsandbytes>=0.43.0
+
+# Flash Attention (instalacao separada recomendada via pip install flash-attn --no-build-isolation)
+# Se falhar, Unsloth ainda funciona, mas mais lento.
+# flash-attn>=2.5.0
+
+# Utilidades
+torch>=2.3.0
+sentencepiece
+protobuf
+packaging
+numpy<2.0.0
